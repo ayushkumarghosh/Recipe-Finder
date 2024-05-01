@@ -2,7 +2,7 @@
 A Flutter app that allows users to input ingredients and fetch matching recipes from the Spoonacular API.
 Start Date: 03-May-2024
 
-## Day 1 (May 1): Project Setup
+## Day 1 (May 1): Project Setup [DONE]
 - Initialize Flutter project
 - Configure project structure
 - Set up version control
