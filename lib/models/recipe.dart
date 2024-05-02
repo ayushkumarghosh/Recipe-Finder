@@ -2,49 +2,65 @@ class Recipe {
   final int id;
   final String title;
   final String image;
-  final List<String> usedIngredients;
-  final List<String> missedIngredients;
-  final int readyInMinutes;
-  final int servings;
-  final String sourceUrl;
+  final int usedIngredientCount;
+  final int missedIngredientCount;
+  final List<RecipeIngredient> usedIngredients;
+  final List<RecipeIngredient> missedIngredients;
+  final int likes;
 
   Recipe({
     required this.id,
     required this.title,
     required this.image,
+    required this.usedIngredientCount,
+    required this.missedIngredientCount,
     required this.usedIngredients,
     required this.missedIngredients,
-    this.readyInMinutes = 0,
-    this.servings = 0,
-    this.sourceUrl = '',
+    required this.likes,
   });
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
-    // Parse used ingredients
-    List<String> used = [];
-    if (json['usedIngredients'] != null) {
-      for (var ingredient in json['usedIngredients']) {
-        used.add(ingredient['original'] ?? ingredient['name'] ?? '');
-      }
-    }
-
-    // Parse missed ingredients
-    List<String> missed = [];
-    if (json['missedIngredients'] != null) {
-      for (var ingredient in json['missedIngredients']) {
-        missed.add(ingredient['original'] ?? ingredient['name'] ?? '');
-      }
+    List<RecipeIngredient> parseIngredients(List<dynamic> ingredientList) {
+      return ingredientList
+          .map((item) => RecipeIngredient.fromJson(item))
+          .toList();
     }
 
     return Recipe(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? '',
+      id: json['id'],
+      title: json['title'],
+      image: json['image'],
+      usedIngredientCount: json['usedIngredientCount'],
+      missedIngredientCount: json['missedIngredientCount'],
+      usedIngredients: parseIngredients(json['usedIngredients'] ?? []),
+      missedIngredients: parseIngredients(json['missedIngredients'] ?? []),
+      likes: json['likes'] ?? 0,
+    );
+  }
+}
+
+class RecipeIngredient {
+  final int id;
+  final String name;
+  final String image;
+  final double amount;
+  final String unit;
+
+  RecipeIngredient({
+    required this.id,
+    required this.name,
+    required this.image,
+    required this.amount,
+    required this.unit,
+  });
+
+  factory RecipeIngredient.fromJson(Map<String, dynamic> json) {
+    return RecipeIngredient(
+      id: json['id'],
+      name: json['name'],
       image: json['image'] ?? '',
-      usedIngredients: used,
-      missedIngredients: missed,
-      readyInMinutes: json['readyInMinutes'] ?? 0,
-      servings: json['servings'] ?? 0,
-      sourceUrl: json['sourceUrl'] ?? '',
+      amount: json['amount']?.toDouble() ?? 0.0,
+      unit: json['unit'] ?? '',
     );
   }
 } 

@@ -9,7 +9,7 @@ Start Date: 03-May-2024
 - Research Spoonacular API documentation
 - Register for Spoonacular API key
 
-## Day 2 (May 2): API Integration - Core
+## Day 2 (May 2): API Integration - Core [DONE]
 - Create API service class
 - Implement basic API connection
 - Create data models for recipes
