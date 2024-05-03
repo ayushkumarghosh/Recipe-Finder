@@ -1,6 +1,5 @@
 # Recipe Finder App Development Plan
 A Flutter app that allows users to input ingredients and fetch matching recipes from the Spoonacular API.
-Start Date: 03-May-2024
 
 ## Day 1 (May 1): Project Setup [DONE]
 - Initialize Flutter project
@@ -15,7 +14,7 @@ Start Date: 03-May-2024
 - Create data models for recipes
 - Test basic API connectivity
 
-## Day 3 (May 3): API Integration - Endpoints
+## Day 3 (May 3): API Integration - Endpoints [DONE]
 - Implement search by ingredients endpoint
 - Create recipe detail fetching functionality
 - Implement error handling for API requests
