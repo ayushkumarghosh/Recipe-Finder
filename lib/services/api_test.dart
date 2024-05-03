@@ -14,14 +14,13 @@ class ApiTest {
       debugPrint('API Connection Test: ${isConnected ? 'SUCCESS' : 'FAILED'}');
       
       if (isConnected) {
-        // Test recipe search
-        final searchResult = await apiService.searchRecipesByIngredients(
-          ['chicken', 'pasta', 'tomato'],
-          number: 3,
-        );
-        
-        if (searchResult['success']) {
-          final recipes = searchResult['data'];
+        // Test recipe search by ingredients
+        try {
+          final recipes = await apiService.searchRecipesByIngredients(
+            ['chicken', 'pasta', 'tomato'],
+            number: 3,
+          );
+          
           debugPrint('Found ${recipes.length} recipes');
           
           if (recipes.isNotEmpty) {
@@ -29,25 +28,64 @@ class ApiTest {
             debugPrint('First recipe: ${firstRecipe.title}');
             
             // Test recipe details
-            final recipeId = firstRecipe.id;
-            final detailsResult = await apiService.getRecipeDetails(recipeId);
-            
-            if (detailsResult['success']) {
-              final recipeDetails = detailsResult['data'];
+            try {
+              final recipeId = firstRecipe.id;
+              final recipeDetails = await apiService.getRecipeDetails(recipeId);
+              
               debugPrint('Recipe details loaded: ${recipeDetails.title}');
               debugPrint('Cooking time: ${recipeDetails.readyInMinutes} minutes');
               debugPrint('Servings: ${recipeDetails.servings}');
               debugPrint('Instructions: ${recipeDetails.steps.length} steps');
-            } else {
-              debugPrint('Failed to load recipe details: ${detailsResult['message']}');
+            } catch (e) {
+              debugPrint('Recipe details error: $e');
             }
           }
-        } else {
-          debugPrint('Search failed: ${searchResult['message']}');
+        } catch (e) {
+          debugPrint('Recipe search error: $e');
+        }
+        
+        // Test complex search
+        try {
+          final complexResults = await apiService.searchRecipes(
+            query: 'pasta',
+            cuisine: ['italian'],
+            diet: ['vegetarian'],
+            number: 3,
+            maxReadyTime: 30,
+          );
+          
+          debugPrint('Complex search found ${complexResults.length} recipes');
+          if (complexResults.isNotEmpty) {
+            final firstResult = complexResults.first;
+            debugPrint('First result: ${firstResult.title}');
+          }
+        } catch (e) {
+          debugPrint('Complex search error: $e');
         }
       }
     } catch (e) {
       debugPrint('API Test Error: ${e.toString()}');
+    }
+  }
+  
+  static Future<void> testErrorHandling() async {
+    debugPrint('Testing API error handling...');
+    final apiService = ApiService();
+    
+    // Test invalid recipe ID
+    try {
+      await apiService.getRecipeDetails(999999999);
+      debugPrint('Should have thrown an exception');
+    } catch (e) {
+      debugPrint('Expected error: $e');
+    }
+    
+    // Test empty ingredients list
+    try {
+      await apiService.searchRecipesByIngredients([]);
+      debugPrint('Should have thrown an exception');
+    } catch (e) {
+      debugPrint('Expected error: $e');
     }
   }
 } 
