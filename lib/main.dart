@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
+import 'constants/app_theme.dart';
 import 'screens/home_screen.dart';
+import 'services/api_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,13 +19,18 @@ class RecipeFinderApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Recipe Finder',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-        useMaterial3: true,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ApiController()),
+      ],
+      child: MaterialApp(
+        title: 'Recipe Finder',
+        theme: AppTheme.lightTheme(),
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const HomeScreen(),
+        },
       ),
-      home: const HomeScreen(),
     );
   }
 }
