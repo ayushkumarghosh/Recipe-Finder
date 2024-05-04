@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../constants/app_theme.dart';
+import 'recipe_results_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -38,13 +40,26 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recipe Finder'),
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Header
+            const Text(
+              'Find recipes with your ingredients',
+              style: AppTheme.headlineMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Add ingredients you have and discover delicious recipes',
+              style: AppTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            
             // Ingredient input
             Row(
               children: [
@@ -59,7 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     onSubmitted: (_) => _addIngredient(),
                   ),
                 ),
-                IconButton(
+                const SizedBox(width: 8),
+                IconButton.filled(
                   icon: const Icon(Icons.add),
                   onPressed: _addIngredient,
                   tooltip: 'Add ingredient',
@@ -69,38 +85,62 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             
             // Ingredients list
-            Wrap(
-              spacing: 8,
-              children: _ingredients.map((ingredient) {
-                return Chip(
-                  label: Text(ingredient),
-                  deleteIcon: const Icon(Icons.close, size: 16),
-                  onDeleted: () => _removeIngredient(ingredient),
-                );
-              }).toList(),
-            ),
-            
-            const SizedBox(height: 24),
+            if (_ingredients.isNotEmpty) ...[
+              const Text(
+                'Added ingredients:',
+                style: AppTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _ingredients.map((ingredient) {
+                  return Chip(
+                    label: Text(ingredient),
+                    deleteIcon: const Icon(Icons.close, size: 16),
+                    onDeleted: () => _removeIngredient(ingredient),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+            ],
             
             // Search button
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: _ingredients.isEmpty ? null : () {
-                // TODO: Implement search functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Searching for recipes with ${_ingredients.join(", ")}...')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RecipeResultsScreen(
+                      ingredients: _ingredients,
+                    ),
+                  ),
                 );
               },
+              icon: const Icon(Icons.search),
+              label: const Text('Find Recipes'),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: const Text('Find Recipes'),
             ),
             
             const Expanded(
               child: Center(
-                child: Text(
-                  'Add ingredients to find matching recipes!',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.food_bank,
+                      size: 80,
+                      color: AppTheme.primaryColor,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Add ingredients to get started',
+                      style: TextStyle(fontSize: 16, color: AppTheme.textColorSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             ),
