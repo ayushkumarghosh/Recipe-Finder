@@ -20,7 +20,7 @@ A Flutter app that allows users to input ingredients and fetch matching recipes 
 - Implement error handling for API requests
 - Unit test API services
 
-## Day 4 (May 4): UI Design - Basic Structure
+## Day 4 (May 4): UI Design - Basic Structure [DONE]
 - Design app theme (colors, typography)
 - Create wireframes for main screens
 - Implement basic navigation structure
