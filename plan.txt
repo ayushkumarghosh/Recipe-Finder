@@ -26,7 +26,7 @@ A Flutter app that allows users to input ingredients and fetch matching recipes 
 - Implement basic navigation structure
 - Set up state management solution
 
-## Day 5 (May 5): UI Implementation - Home Screen
+## Day 5 (May 5): UI Implementation - Home Screen [DONE]
 - Create home screen layout
 - Implement ingredient input UI
 - Design ingredient chips/tags component
