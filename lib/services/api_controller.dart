@@ -79,7 +79,7 @@ class ApiController with ChangeNotifier {
   }
 
   // Get recipe details
-  Future<void> getRecipeDetails(int recipeId, {
+  Future<RecipeDetail> getRecipeDetails(int recipeId, {
     bool includeNutrition = false,
   }) async {
     _state = RequestState.loading;
@@ -92,15 +92,17 @@ class ApiController with ChangeNotifier {
       );
       
       _state = RequestState.success;
+      notifyListeners();
+      return _recipeDetail!;
     } catch (e) {
       _state = RequestState.error;
       _errorMessage = e is ApiException 
           ? e.toString() 
           : 'Failed to load recipe details';
       _recipeDetail = null;
+      notifyListeners();
+      throw e;
     }
-    
-    notifyListeners();
   }
 
   // Search recipes with complex filtering

@@ -31,7 +31,7 @@ class RecipeDetailScreen extends StatelessWidget {
       ),
       body: FutureBuilder<RecipeDetail>(
         future: Provider.of<ApiController>(context, listen: false)
-            .getRecipeInformation(recipeId),
+            .getRecipeDetails(recipeId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -147,7 +147,7 @@ class RecipeDetailScreen extends StatelessWidget {
                           style: AppTheme.titleLarge,
                         ),
                         const SizedBox(height: 12),
-                        ...recipe.extendedIngredients.map((ingredient) {
+                        ...recipe.ingredients.map((ingredient) {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Row(
@@ -182,10 +182,10 @@ class RecipeDetailScreen extends StatelessWidget {
                           style: AppTheme.titleLarge,
                         ),
                         const SizedBox(height: 12),
-                        recipe.analyzedInstructions.isNotEmpty
+                        recipe.steps.isNotEmpty
                             ? Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: recipe.analyzedInstructions.first.steps
+                                children: recipe.steps
                                     .map((step) {
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 16),
@@ -222,8 +222,8 @@ class RecipeDetailScreen extends StatelessWidget {
                                 }).toList(),
                               )
                             : Text(
-                                recipe.instructions.isNotEmpty
-                                    ? recipe.instructions
+                                recipe.summary.isNotEmpty
+                                    ? recipe.summary
                                     : 'No instructions available.',
                                 style: AppTheme.bodyLarge,
                               ),

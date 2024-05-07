@@ -32,13 +32,13 @@ A Flutter app that allows users to input ingredients and fetch matching recipes 
 - Design ingredient chips/tags component
 - Add search button functionality
 
-## Day 6 (May 6): UI Implementation - Results Screen
+## Day 6 (May 6): UI Implementation - Results Screen [DONE]
 - Design recipe card component
 - Implement recipe results list view
 - Add loading states and animations
 - Create empty state and error handling views
 
-## Day 7 (May 7): UI Implementation - Recipe Details
+## Day 7 (May 7): UI Implementation - Recipe Details [DONE]
 - Design recipe detail page
 - Implement nutritional information display
 - Create ingredients and instructions views
