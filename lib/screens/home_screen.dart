@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_theme.dart';
+import '../models/ingredient.dart';
+import '../services/ingredient_service.dart';
 import '../widgets/ingredient_input.dart';
 import '../widgets/ingredient_chips.dart';
 import 'recipe_results_screen.dart';
@@ -15,7 +17,35 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<String> _ingredients = [];
   final TextEditingController _ingredientController = TextEditingController();
   final FocusNode _ingredientFocusNode = FocusNode();
+  late IngredientService _ingredientService;
   bool _isSubmitting = false;
+  bool _isLoading = true;
+  
+  @override
+  void initState() {
+    super.initState();
+    _ingredientService = IngredientService();
+    _loadSavedIngredients();
+  }
+  
+  Future<void> _loadSavedIngredients() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      // Initialize common ingredients list if it's the first launch
+      await _ingredientService.initializeCommonIngredients();
+      
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -24,8 +54,13 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _addIngredient(String ingredient) {
+  Future<void> _addIngredient(String ingredient) async {
     if (!_ingredients.contains(ingredient)) {
+      // Save to recent ingredients
+      await _ingredientService.saveRecentIngredient(
+        Ingredient(name: ingredient),
+      );
+      
       setState(() {
         _ingredients.add(ingredient);
       });
