@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_theme.dart';
 import '../models/ingredient.dart';
 import '../services/ingredient_service.dart';
+import '../utils/local_storage.dart';
 import '../widgets/ingredient_input.dart';
 import '../widgets/ingredient_chips.dart';
 import 'recipe_results_screen.dart';
@@ -37,6 +38,15 @@ class _HomeScreenState extends State<HomeScreen> {
       // Initialize common ingredients list if it's the first launch
       await _ingredientService.initializeCommonIngredients();
       
+      // Load saved ingredients from local storage
+      final savedIngredients = await LocalStorage.getIngredients();
+      
+      if (savedIngredients.isNotEmpty) {
+        setState(() {
+          _ingredients.addAll(savedIngredients);
+        });
+      }
+      
       setState(() {
         _isLoading = false;
       });
@@ -64,6 +74,9 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _ingredients.add(ingredient);
       });
+      
+      // Save updated ingredients list to local storage
+      await LocalStorage.saveIngredients(_ingredients);
     } else {
       // Show snackbar if ingredient already exists
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,10 +89,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _removeIngredient(String ingredient) {
+  Future<void> _removeIngredient(String ingredient) async {
     setState(() {
       _ingredients.remove(ingredient);
     });
+    
+    // Save updated ingredients list to local storage
+    await LocalStorage.saveIngredients(_ingredients);
   }
 
   void _findRecipes() {
@@ -88,6 +104,9 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isSubmitting = true;
     });
+    
+    // Add to search history
+    LocalStorage.addToSearchHistory(_ingredients);
     
     // Simulate a small delay to show loading state
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -277,10 +296,14 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: _ingredients.isNotEmpty
           ? FloatingActionButton(
               mini: true,
-              onPressed: () {
+              onPressed: () async {
                 setState(() {
                   _ingredients.clear();
                 });
+                
+                // Clear from local storage
+                await LocalStorage.saveIngredients([]);
+                
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('All ingredients cleared'),
