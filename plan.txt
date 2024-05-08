@@ -44,8 +44,8 @@ A Flutter app that allows users to input ingredients and fetch matching recipes 
 - Create ingredients and instructions views
 - Add image loading and caching
 
-## Day 8 (May 8): Feature - Ingredient Management
-- Implement ingredient add/remove functionality 
+## Day 8 (May 8): Feature - Ingredient Management [DONE]
+- Implement ingredient add/remove functionality
 - Create ingredient suggestion feature
 - Add input validation
 - Implement ingredient persistence
