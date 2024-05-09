@@ -50,7 +50,7 @@ A Flutter app that allows users to input ingredients and fetch matching recipes 
 - Add input validation
 - Implement ingredient persistence
 
-## Day 9 (May 9): Feature - Favorites & History
+## Day 9 (May 9): Feature - Favorites & History [DONE]
 - Add recipe favoriting functionality
 - Implement search history tracking
 - Create favorites screen
