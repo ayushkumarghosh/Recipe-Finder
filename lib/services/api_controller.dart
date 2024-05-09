@@ -78,6 +78,34 @@ class ApiController with ChangeNotifier {
     notifyListeners();
   }
 
+  // Get recipe by ID (for favorites functionality)
+  Future<Recipe?> getRecipeById(int recipeId) async {
+    try {
+      for (final recipe in _recipes) {
+        if (recipe.id == recipeId) {
+          return recipe;
+        }
+      }
+      
+      // If not in current recipes list, fetch from API
+      final recipeDetail = await _apiService.getRecipeDetails(recipeId);
+      
+      // Create a basic Recipe object from the recipe detail
+      return Recipe(
+        id: recipeDetail.id,
+        title: recipeDetail.title,
+        image: recipeDetail.image,
+        usedIngredientCount: 0, // Not available from detail
+        missedIngredientCount: 0, // Not available from detail
+        usedIngredients: [], // Not available from detail
+        missedIngredients: [], // Not available from detail
+        likes: recipeDetail.aggregateLikes,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Get recipe details
   Future<RecipeDetail> getRecipeDetails(int recipeId, {
     bool includeNutrition = false,

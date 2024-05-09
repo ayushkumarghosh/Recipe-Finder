@@ -1,37 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../constants/app_theme.dart';
-import '../models/recipe_detail.dart';
-import '../services/api_controller.dart';
-
-class RecipeDetailScreen extends StatelessWidget {
-  final int recipeId;
-
-  const RecipeDetailScreen({
-    super.key,
-    required this.recipeId,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recipe Details'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite_border),
-            onPressed: () {
-              // TODO: Implement favorite functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Added to favorites')),
-              );
-            },
-          ),
-        ],
-      ),
+import 'package:flutter/material.dart';import 'package:provider/provider.dart';import '../constants/app_theme.dart';import '../models/recipe.dart';import '../models/recipe_detail.dart';import '../services/api_controller.dart';import '../services/storage_service.dart';class RecipeDetailScreen extends StatefulWidget {  final int recipeId;  const RecipeDetailScreen({    super.key,    required this.recipeId,  });  @override  State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();}class _RecipeDetailScreenState extends State<RecipeDetailScreen> {  final StorageService _storageService = StorageService();  bool _isFavorite = false;  bool _isLoading = true;    @override  void initState() {    super.initState();    _checkIfFavorite();  }    Future<void> _checkIfFavorite() async {    setState(() {      _isLoading = true;    });    final isFavorite = await _storageService.isFavorite(widget.recipeId);    setState(() {      _isFavorite = isFavorite;      _isLoading = false;    });  }    Future<void> _toggleFavorite(Recipe recipe) async {    setState(() {      _isLoading = true;    });        bool success;    if (_isFavorite) {      success = await _storageService.removeFavorite(widget.recipeId);      if (success) {        ScaffoldMessenger.of(context).showSnackBar(          const SnackBar(content: Text('Removed from favorites')),        );      }    } else {      success = await _storageService.addFavorite(recipe);      if (success) {        ScaffoldMessenger.of(context).showSnackBar(          const SnackBar(content: Text('Added to favorites')),        );      }    }        if (success) {      setState(() {        _isFavorite = !_isFavorite;        _isLoading = false;      });    } else {      setState(() {        _isLoading = false;      });    }  }  @override  Widget build(BuildContext context) {    return Scaffold(      appBar: AppBar(        title: const Text('Recipe Details'),        actions: [          _isLoading             ? const Padding(                padding: EdgeInsets.all(8.0),                child: CircularProgressIndicator(),              )            : IconButton(                icon: Icon(                  _isFavorite ? Icons.favorite : Icons.favorite_border,                  color: _isFavorite ? Colors.red : null,                ),                onPressed: () {                  // Get the basic recipe info from the API controller                  final apiController = Provider.of<ApiController>(context, listen: false);                  apiController.getRecipeById(widget.recipeId).then((recipe) {                    if (recipe != null) {                      _toggleFavorite(recipe);                    }                  });                },              ),        ],      ),
       body: FutureBuilder<RecipeDetail>(
         future: Provider.of<ApiController>(context, listen: false)
-            .getRecipeDetails(recipeId),
+            .getRecipeDetails(widget.recipeId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -246,7 +216,7 @@ class RecipeDetailScreen extends StatelessWidget {
         Icon(
           icon,
           size: 18,
-          color: AppTheme.textColorSecondary,
+          color: AppTheme.primaryColor,
         ),
         const SizedBox(width: 4),
         Text(

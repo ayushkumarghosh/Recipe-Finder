@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_theme.dart';
 import '../models/ingredient.dart';
 import '../services/ingredient_service.dart';
+import '../services/storage_service.dart';
 import '../utils/local_storage.dart';
 import '../widgets/ingredient_input.dart';
 import '../widgets/ingredient_chips.dart';
 import 'recipe_results_screen.dart';
+import 'favorites_screen.dart';
+import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -108,6 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // Add to search history
     LocalStorage.addToSearchHistory(_ingredients);
     
+    // Save to search history using StorageService
+    final storageService = Provider.of<StorageService>(context, listen: false);
+    storageService.addSearchQuery(_ingredients.join(', '));
+    
     // Simulate a small delay to show loading state
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
@@ -127,6 +135,13 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _setIngredientsList(List<String> ingredients) {
+    setState(() {
+      _ingredients.clear();
+      _ingredients.addAll(ingredients);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
@@ -138,6 +153,36 @@ class _HomeScreenState extends State<HomeScreen> {
           SliverAppBar(
             expandedHeight: 180.0,
             pinned: true,
+            actions: [
+              // Favorites button
+              IconButton(
+                icon: const Icon(Icons.favorite),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FavoritesScreen(),
+                    ),
+                  );
+                },
+                tooltip: 'Favorites',
+              ),
+              // History button
+              IconButton(
+                icon: const Icon(Icons.history),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => HistoryScreen(
+                        onSelectIngredients: _setIngredientsList,
+                      ),
+                    ),
+                  );
+                },
+                tooltip: 'Search History',
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               title: const Text('Recipe Finder'),
               background: Container(
