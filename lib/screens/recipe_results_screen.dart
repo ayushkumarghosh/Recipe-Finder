@@ -3,11 +3,15 @@ import 'package:provider/provider.dart';
 
 import '../constants/app_theme.dart';
 import '../models/recipe.dart';
+import '../models/filter_options.dart';
 import '../services/api_controller.dart';
 import '../widgets/recipe_card.dart';
 import '../widgets/loading_recipe_card.dart';
 import '../widgets/empty_recipe_results.dart';
 import '../widgets/error_recipe_results.dart';
+import '../widgets/filter_dialog.dart';
+import '../widgets/sorting_options.dart';
+import '../widgets/filter_badges.dart';
 import 'recipe_detail_screen.dart';
 
 class RecipeResultsScreen extends StatefulWidget {
@@ -25,6 +29,8 @@ class RecipeResultsScreen extends StatefulWidget {
 class _RecipeResultsScreenState extends State<RecipeResultsScreen> with SingleTickerProviderStateMixin {
   late final AnimationController _animationController;
   bool _isSearching = false;
+  bool _isFilterVisible = false;
+  late FilterOptions _filterOptions;
   
   @override
   void initState() {
@@ -33,6 +39,9 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen> with SingleTi
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    
+    // Initialize filter options
+    _filterOptions = FilterOptions();
     
     // Start the API search when the screen loads
     _searchRecipes();
@@ -55,6 +64,105 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen> with SingleTi
       setState(() => _isSearching = false);
     });
   }
+  
+  void _showFilterDialog() {
+    final apiController = Provider.of<ApiController>(context, listen: false);
+    
+    // Create current filter options from API controller
+    final currentFilters = FilterOptions(
+      cuisine: apiController.cuisine,
+      diet: apiController.diet,
+      intolerances: apiController.intolerances,
+      excludeIngredients: apiController.excludeIngredients,
+      type: apiController.mealType,
+      maxReadyTime: apiController.maxReadyTime,
+      sortOption: apiController.sortOption,
+      sortDirection: apiController.sortDirection,
+    );
+    
+    showDialog(
+      context: context,
+      builder: (context) => FilterDialog(
+        initialFilters: currentFilters,
+        onApplyFilters: _applyFilters,
+      ),
+    );
+  }
+  
+  void _applyFilters(FilterOptions filters) {
+    setState(() {
+      _filterOptions = filters;
+      _isSearching = true;
+    });
+    
+    final apiController = Provider.of<ApiController>(context, listen: false);
+    apiController.applyFiltersAndSort(
+      cuisine: filters.cuisine,
+      diet: filters.diet,
+      intolerances: filters.intolerances,
+      excludeIngredients: filters.excludeIngredients,
+      type: filters.type,
+      maxReadyTime: filters.maxReadyTime,
+      sortOption: filters.sortOption,
+      sortDirection: filters.sortDirection,
+    ).then((_) {
+      setState(() => _isSearching = false);
+    }).catchError((error) {
+      setState(() => _isSearching = false);
+    });
+  }
+  
+  void _updateSort(String sortOption, String sortDirection) {
+    setState(() {
+      _filterOptions = _filterOptions.copyWith(
+        sortOption: sortOption,
+        sortDirection: sortDirection,
+      );
+      _isSearching = true;
+    });
+    
+    final apiController = Provider.of<ApiController>(context, listen: false);
+    apiController.applyFiltersAndSort(
+      cuisine: _filterOptions.cuisine,
+      diet: _filterOptions.diet,
+      intolerances: _filterOptions.intolerances,
+      excludeIngredients: _filterOptions.excludeIngredients,
+      type: _filterOptions.type,
+      maxReadyTime: _filterOptions.maxReadyTime,
+      sortOption: sortOption,
+      sortDirection: sortDirection,
+    ).then((_) {
+      setState(() => _isSearching = false);
+    }).catchError((error) {
+      setState(() => _isSearching = false);
+    });
+  }
+  
+  void _clearFilters() {
+    setState(() {
+      _filterOptions = FilterOptions();
+      _isSearching = true;
+    });
+    
+    final apiController = Provider.of<ApiController>(context, listen: false);
+    apiController.resetFilters();
+    apiController.searchRecipesByIngredients(widget.ingredients).then((_) {
+      setState(() => _isSearching = false);
+    }).catchError((error) {
+      setState(() => _isSearching = false);
+    });
+  }
+  
+  bool _hasActiveFilters() {
+    return _filterOptions.cuisine != null ||
+           _filterOptions.diet != null ||
+           _filterOptions.intolerances != null ||
+           _filterOptions.excludeIngredients != null ||
+           _filterOptions.type != null ||
+           _filterOptions.maxReadyTime > 0 ||
+           _filterOptions.sortOption != 'popularity' ||
+           _filterOptions.sortDirection != 'desc';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,44 +172,77 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen> with SingleTi
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterDialog,
+          ),
+          IconButton(
+            icon: Icon(
+              _isFilterVisible ? Icons.sort : Icons.sort_outlined,
+              color: _isFilterVisible ? AppTheme.primaryColor : null,
+            ),
             onPressed: () {
-              // Filter functionality will be implemented in a later day
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Filtering coming soon!')),
-              );
+              setState(() {
+                _isFilterVisible = !_isFilterVisible;
+              });
             },
           ),
         ],
       ),
-      body: Consumer<ApiController>(
-        builder: (context, apiController, child) {
-          final state = apiController.state;
+      body: Column(
+        children: [
+          // Filter badges
+          if (_hasActiveFilters())
+            FilterBadges(
+              filters: _filterOptions,
+              onFilterClear: _clearFilters,
+            ),
           
-          // Show loading state
-          if (_isSearching || state == RequestState.loading) {
-            return _buildLoadingView();
-          }
+          // Sorting controls - animate height
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: _isFilterVisible ? null : 0,
+            child: _isFilterVisible
+                ? SortingOptions(
+                    currentSort: _filterOptions.sortOption,
+                    currentDirection: _filterOptions.sortDirection,
+                    onSortChanged: _updateSort,
+                  )
+                : const SizedBox.shrink(),
+          ),
           
-          // Show error state
-          if (state == RequestState.error) {
-            return ErrorRecipeResults(
-              errorMessage: apiController.errorMessage,
-              onRetry: _searchRecipes,
-              onGoBack: () => Navigator.of(context).pop(),
-            );
-          }
-          
-          // Show empty state
-          final recipes = apiController.recipes;
-          if (recipes.isEmpty) {
-            return EmptyRecipeResults(
-              onGoBack: () => Navigator.of(context).pop(),
-            );
-          }
-          
-          // Show results
-          return _buildRecipeList(recipes);
-        },
+          // Results
+          Expanded(
+            child: Consumer<ApiController>(
+              builder: (context, apiController, child) {
+                final state = apiController.state;
+                
+                // Show loading state
+                if (_isSearching || state == RequestState.loading) {
+                  return _buildLoadingView();
+                }
+                
+                // Show error state
+                if (state == RequestState.error) {
+                  return ErrorRecipeResults(
+                    errorMessage: apiController.errorMessage,
+                    onRetry: _searchRecipes,
+                    onGoBack: () => Navigator.of(context).pop(),
+                  );
+                }
+                
+                // Show empty state
+                final recipes = apiController.recipes;
+                if (recipes.isEmpty) {
+                  return EmptyRecipeResults(
+                    onGoBack: () => Navigator.of(context).pop(),
+                  );
+                }
+                
+                // Show results
+                return _buildRecipeList(recipes);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -12,6 +12,17 @@ class ApiController with ChangeNotifier {
   List<Recipe> _recipes = [];
   RecipeDetail? _recipeDetail;
   bool _isConnectionAvailable = false;
+  List<String> _currentIngredients = [];
+  
+  // Current filter and sort state
+  String _sortOption = 'popularity';
+  String _sortDirection = 'desc';
+  List<String>? _cuisine;
+  List<String>? _diet;
+  List<String>? _intolerances;
+  List<String>? _excludeIngredients;
+  String? _mealType;
+  int _maxReadyTime = 0;
 
   ApiController({ApiService? apiService}) 
       : _apiService = apiService ?? ApiService();
@@ -22,6 +33,14 @@ class ApiController with ChangeNotifier {
   List<Recipe> get recipes => _recipes;
   RecipeDetail? get recipeDetail => _recipeDetail;
   bool get isConnectionAvailable => _isConnectionAvailable;
+  String get sortOption => _sortOption;
+  String get sortDirection => _sortDirection;
+  List<String>? get cuisine => _cuisine;
+  List<String>? get diet => _diet;
+  List<String>? get intolerances => _intolerances;
+  List<String>? get excludeIngredients => _excludeIngredients;
+  String? get mealType => _mealType;
+  int get maxReadyTime => _maxReadyTime;
 
   // Check API connection
   Future<void> checkConnection() async {
@@ -54,6 +73,7 @@ class ApiController with ChangeNotifier {
       return;
     }
 
+    _currentIngredients = List.from(ingredients);
     _state = RequestState.loading;
     notifyListeners();
 
@@ -180,6 +200,59 @@ class ApiController with ChangeNotifier {
     
     notifyListeners();
   }
+  
+  // Apply filters and sorting
+  Future<void> applyFiltersAndSort({
+    List<String>? cuisine,
+    List<String>? diet,
+    List<String>? intolerances,
+    List<String>? excludeIngredients,
+    String? type,
+    int maxReadyTime = 0,
+    String sortOption = 'popularity',
+    String sortDirection = 'desc',
+  }) async {
+    // Update the filter state
+    _cuisine = cuisine;
+    _diet = diet;
+    _intolerances = intolerances;
+    _excludeIngredients = excludeIngredients;
+    _mealType = type;
+    _maxReadyTime = maxReadyTime;
+    _sortOption = sortOption;
+    _sortDirection = sortDirection;
+    
+    // If we have ingredients, use the complex search API
+    if (_currentIngredients.isNotEmpty) {
+      return searchRecipes(
+        includeIngredients: _currentIngredients,
+        cuisine: _cuisine,
+        diet: _diet,
+        intolerances: _intolerances,
+        excludeIngredients: _excludeIngredients,
+        type: _mealType,
+        maxReadyTime: _maxReadyTime,
+        sort: _sortOption,
+        sortDirection: _sortDirection,
+      );
+    }
+    
+    notifyListeners();
+  }
+  
+  // Reset filters to default values
+  void resetFilters() {
+    _cuisine = null;
+    _diet = null;
+    _intolerances = null;
+    _excludeIngredients = null;
+    _mealType = null;
+    _maxReadyTime = 0;
+    _sortOption = 'popularity';
+    _sortDirection = 'desc';
+    
+    notifyListeners();
+  }
 
   // Reset the controller state
   void reset() {
@@ -187,6 +260,8 @@ class ApiController with ChangeNotifier {
     _errorMessage = '';
     _recipes = [];
     _recipeDetail = null;
+    _currentIngredients = [];
+    resetFilters();
     notifyListeners();
   }
 } 

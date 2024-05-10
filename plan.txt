@@ -56,7 +56,7 @@ A Flutter app that allows users to input ingredients and fetch matching recipes 
 - Create favorites screen
 - Add local storage for favorites and history
 
-## Day 10 (May 10): Feature - Filtering & Sorting
+## Day 10 (May 10): Feature - Filtering & Sorting [DONE]
 - Implement recipe filtering options
 - Add sorting capabilities (prep time, rating, etc.)
 - Create filter UI components
