@@ -59,11 +59,23 @@ class ApiController with ChangeNotifier {
     notifyListeners();
   }
 
+  // Improved ranking algorithm for recipe search
+  int _calculateImprovedRanking(String sortOption) {
+    // 1 = maximize used ingredients, 2 = minimize missing ingredients
+    switch (sortOption) {
+      case 'max-used-ingredients':
+        return 1;
+      case 'min-missing-ingredients':
+        return 2;
+      default:
+        return 1; // Default to maximize used ingredients
+    }
+  }
+
   // Search recipes by ingredients
   Future<void> searchRecipesByIngredients(List<String> ingredients, {
     int number = 10,
     bool limitLicense = true,
-    int ranking = 1,
     bool ignorePantry = false,
   }) async {
     if (ingredients.isEmpty) {
@@ -78,6 +90,9 @@ class ApiController with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Use the improved ranking algorithm
+      final ranking = _calculateImprovedRanking(_sortOption);
+      
       _recipes = await _apiService.searchRecipesByIngredients(
         ingredients,
         number: number,
@@ -85,6 +100,11 @@ class ApiController with ChangeNotifier {
         ranking: ranking,
         ignorePantry: ignorePantry,
       );
+      
+      // Apply additional sorting if needed (for cases the API doesn't handle)
+      if (_sortOption == 'popularity' && _recipes.isNotEmpty) {
+        _sortRecipesByPopularity();
+      }
       
       _state = RequestState.success;
     } catch (e) {
@@ -96,6 +116,29 @@ class ApiController with ChangeNotifier {
     }
     
     notifyListeners();
+  }
+
+  // Custom sorting method for recipes
+  void _sortRecipesByPopularity() {
+    _recipes.sort((a, b) {
+      int result = 0;
+      
+      // First sort by likes
+      result = b.likes.compareTo(a.likes);
+      
+      // If likes are the same, sort by used ingredient count
+      if (result == 0) {
+        result = b.usedIngredientCount.compareTo(a.usedIngredientCount);
+      }
+      
+      // If used ingredient count is the same, sort by missed ingredient count
+      if (result == 0) {
+        result = a.missedIngredientCount.compareTo(b.missedIngredientCount);
+      }
+      
+      // Apply sort direction
+      return _sortDirection == 'desc' ? result : -result;
+    });
   }
 
   // Get recipe by ID (for favorites functionality)
@@ -188,6 +231,11 @@ class ApiController with ChangeNotifier {
         sort: sort,
         sortDirection: sortDirection,
       );
+      
+      // Apply additional sorting if needed
+      if (sort == 'popularity' && _recipes.isNotEmpty) {
+        _sortRecipesByPopularity();
+      }
       
       _state = RequestState.success;
     } catch (e) {
