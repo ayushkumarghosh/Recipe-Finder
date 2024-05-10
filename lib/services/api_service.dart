@@ -17,6 +17,13 @@ class ApiException implements Exception {
 class ApiService {
   final String baseUrl = 'https://api.spoonacular.com';
   late final String apiKey;
+  
+  // Caching layer for API responses
+  final Map<String, dynamic> _cache = {};
+  // Cache TTL in seconds
+  final int _cacheTtl = 300; // 5 minutes
+  // Cache timestamps for expiration
+  final Map<String, DateTime> _cacheTimestamps = {};
 
   ApiService() {
     apiKey = dotenv.env['SPOONACULAR_API_KEY'] ?? '';
@@ -56,6 +63,42 @@ class ApiService {
       throw ApiException(errorMessage, statusCode: response.statusCode);
     }
   }
+  
+  // Cache management methods
+  String _generateCacheKey(String endpoint, Map<String, dynamic> params) {
+    final sortedParams = Map.fromEntries(params.entries.toList()..sort((a, b) => a.key.compareTo(b.key)));
+    return '$endpoint:${json.encode(sortedParams)}';
+  }
+  
+  dynamic _getCachedData(String cacheKey) {
+    if (!_cache.containsKey(cacheKey)) return null;
+    
+    // Check if cache is expired
+    final timestamp = _cacheTimestamps[cacheKey];
+    if (timestamp == null) return null;
+    
+    final now = DateTime.now();
+    final expiration = timestamp.add(Duration(seconds: _cacheTtl));
+    
+    if (now.isAfter(expiration)) {
+      // Cache expired, remove it
+      _cache.remove(cacheKey);
+      _cacheTimestamps.remove(cacheKey);
+      return null;
+    }
+    
+    return _cache[cacheKey];
+  }
+  
+  void _cacheData(String cacheKey, dynamic data) {
+    _cache[cacheKey] = data;
+    _cacheTimestamps[cacheKey] = DateTime.now();
+  }
+  
+  void clearCache() {
+    _cache.clear();
+    _cacheTimestamps.clear();
+  }
 
   // Basic test connection to check if API is working
   Future<bool> testConnection() async {
@@ -69,7 +112,7 @@ class ApiService {
     }
   }
 
-  // Method to search recipes by ingredients
+  // Method to search recipes by ingredients with caching
   Future<List<Recipe>> searchRecipesByIngredients(
       List<String> ingredients, {
       int number = 10,
@@ -79,18 +122,31 @@ class ApiService {
     }) async {
     try {
       final String ingredientsStr = ingredients.join(',');
-      final response = await http.get(
-        _buildUrl('/recipes/findByIngredients', {
-          'ingredients': ingredientsStr,
-          'number': number.toString(),
-          'ranking': ranking.toString(), // 1 = maximize used ingredients, 2 = minimize missing ingredients
-          'ignorePantry': ignorePantry.toString(),
-          'limitLicense': limitLicense.toString(),
-        }),
-      );
+      
+      // Build cache key and check cache
+      final params = {
+        'ingredients': ingredientsStr,
+        'number': number.toString(),
+        'ranking': ranking.toString(),
+        'ignorePantry': ignorePantry.toString(),
+        'limitLicense': limitLicense.toString(),
+      };
+      
+      final cacheKey = _generateCacheKey('/recipes/findByIngredients', params);
+      final cachedData = _getCachedData(cacheKey);
+      
+      if (cachedData != null) {
+        return (cachedData as List).map((json) => Recipe.fromJson(json)).toList();
+      }
+      
+      final response = await http.get(_buildUrl('/recipes/findByIngredients', params));
       
       final result = await _handleResponse(response);
       final List<dynamic> data = result['data'];
+      
+      // Cache the result
+      _cacheData(cacheKey, data);
+      
       return data.map((json) => Recipe.fromJson(json)).toList();
     } catch (e) {
       if (e is ApiException) {
@@ -100,20 +156,33 @@ class ApiService {
     }
   }
   
-  // Get detailed information about a specific recipe
+  // Get detailed information about a specific recipe with caching
   Future<RecipeDetail> getRecipeDetails(
     int recipeId, {
     bool includeNutrition = false,
   }) async {
     try {
-      final response = await http.get(
-        _buildUrl('/recipes/$recipeId/information', {
-          'includeNutrition': includeNutrition.toString(),
-        }),
-      );
+      // Build cache key and check cache
+      final params = {
+        'includeNutrition': includeNutrition.toString(),
+      };
+      
+      final cacheKey = _generateCacheKey('/recipes/$recipeId/information', params);
+      final cachedData = _getCachedData(cacheKey);
+      
+      if (cachedData != null) {
+        return RecipeDetail.fromJson(cachedData);
+      }
+      
+      final response = await http.get(_buildUrl('/recipes/$recipeId/information', params));
 
       final result = await _handleResponse(response);
-      return RecipeDetail.fromJson(result['data']);
+      final data = result['data'];
+      
+      // Cache the result
+      _cacheData(cacheKey, data);
+      
+      return RecipeDetail.fromJson(data);
     } catch (e) {
       if (e is ApiException) {
         rethrow;
@@ -122,7 +191,7 @@ class ApiService {
     }
   }
   
-  // Complex search for recipes with multiple filters
+  // Complex search for recipes with multiple filters and caching
   Future<List<Recipe>> searchRecipes({
     String? query,
     List<String>? cuisine,
@@ -179,11 +248,23 @@ class ApiService {
         queryParams['maxReadyTime'] = maxReadyTime.toString();
       }
       
+      // Build cache key and check cache
+      final cacheKey = _generateCacheKey('/recipes/complexSearch', queryParams);
+      final cachedData = _getCachedData(cacheKey);
+      
+      if (cachedData != null) {
+        return (cachedData as List).map((json) => Recipe.fromJson(json)).toList();
+      }
+      
       final response = await http.get(_buildUrl('/recipes/complexSearch', queryParams));
       final result = await _handleResponse(response);
       
       // Complex search returns results inside a 'results' array
       final List<dynamic> data = result['data']['results'];
+      
+      // Cache the result
+      _cacheData(cacheKey, data);
+      
       return data.map((json) => Recipe.fromJson(json)).toList();
     } catch (e) {
       if (e is ApiException) {
