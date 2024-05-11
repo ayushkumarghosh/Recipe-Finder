@@ -62,7 +62,7 @@ A Flutter app that allows users to input ingredients and fetch matching recipes 
 - Create filter UI components
 - Improve search algorithm
 
-## Day 11 (May 11): Performance Optimization
+## Day 11 (May 11): Performance Optimization [DONE]
 - Optimize API calls
 - Implement caching mechanisms
 - Improve image loading performance
