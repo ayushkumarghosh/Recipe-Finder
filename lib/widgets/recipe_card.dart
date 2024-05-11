@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../constants/app_theme.dart';
 import '../models/recipe.dart';
 
@@ -35,201 +37,128 @@ class RecipeCard extends StatelessWidget {
                     topLeft: Radius.circular(12.0),
                     topRight: Radius.circular(12.0),
                   ),
-                  child: Image.network(
-                    recipe.image,
+                  child: CachedNetworkImage(
+                    imageUrl: recipe.image,
                     height: 180,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
+                    // Optimize memory usage
+                    memCacheWidth: 600,
+                    memCacheHeight: 400,
+                    // Fade in animation
+                    fadeInDuration: const Duration(milliseconds: 200),
+                    // Optimize placeholder with shimmer effect
+                    placeholder: (context, url) => Shimmer.fromColors(
+                      baseColor: Colors.grey.shade300,
+                      highlightColor: Colors.grey.shade100,
+                      child: Container(
                         height: 180,
                         width: double.infinity,
-                        color: Colors.grey.shade200,
-                        child: const Center(
-                          child: Icon(
-                            Icons.broken_image,
-                            size: 40,
-                            color: Colors.grey,
-                          ),
+                        color: Colors.grey.shade300,
+                      ),
+                    ),
+                    // Error handling
+                    errorWidget: (context, url, error) => Container(
+                      height: 180,
+                      width: double.infinity,
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(
+                          Icons.broken_image,
+                          size: 40,
+                          color: Colors.grey,
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
                 // Ingredients used counter
                 Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.check_circle,
-                          color: Colors.white,
-                          size: 16,
+                  top: 10,
+                  right: 10,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(16.0),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${recipe.usedIngredientCount} used',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 16.0,
+                            ),
+                            const SizedBox(width: 4.0),
+                            Text(
+                              '${recipe.usedIngredientCount} used',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.0,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Ingredients missing counter
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.error,
-                          color: Colors.white,
-                          size: 16,
+                      ),
+                      const SizedBox(width: 4.0),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                        decoration: BoxDecoration(
+                          color: AppTheme.errorColor.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(16.0),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${recipe.missedIngredientCount} missing',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.remove_circle,
+                              color: Colors.white,
+                              size: 16.0,
+                            ),
+                            const SizedBox(width: 4.0),
+                            Text(
+                              '${recipe.missedIngredientCount} missing',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.0,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Likes counter
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.favorite,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${recipe.likes}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
             
-            // Recipe details
+            // Recipe title and info
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Recipe title
                   Text(
                     recipe.title,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 16.0,
                       fontWeight: FontWeight.bold,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
-                  
-                  // Used ingredients section
-                  if (recipe.usedIngredients.isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Used ingredients: ${recipe.usedIngredients.take(3).map((ing) => ing.name).join(", ")}${recipe.usedIngredients.length > 3 ? "..." : ""}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green.shade800,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                      ],
+                  const SizedBox(height: 8.0),
+                  Text(
+                    recipe.likes > 0 
+                        ? '${recipe.likes} likes • ${recipe.missedIngredientCount + recipe.usedIngredientCount} ingredients'
+                        : '${recipe.missedIngredientCount + recipe.usedIngredientCount} ingredients',
+                    style: TextStyle(
+                      fontSize: 12.0,
+                      color: Colors.grey.shade700,
                     ),
-                  
-                  // Missing ingredients section
-                  if (recipe.missedIngredients.isNotEmpty)
-                    Text(
-                      'Missing ingredients: ${recipe.missedIngredients.take(3).map((ing) => ing.name).join(", ")}${recipe.missedIngredients.length > 3 ? "..." : ""}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.red.shade800,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // View recipe button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: onTap,
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTheme.primaryColor,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text('View Recipe'),
-                      ),
-                    ],
                   ),
                 ],
               ),

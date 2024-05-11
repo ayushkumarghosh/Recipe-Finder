@@ -1,11 +1,98 @@
-import 'package:flutter/material.dart';import 'package:provider/provider.dart';import '../constants/app_theme.dart';import '../models/recipe.dart';import '../models/recipe_detail.dart';import '../services/api_controller.dart';import '../services/storage_service.dart';class RecipeDetailScreen extends StatefulWidget {  final int recipeId;  const RecipeDetailScreen({    super.key,    required this.recipeId,  });  @override  State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();}class _RecipeDetailScreenState extends State<RecipeDetailScreen> {  final StorageService _storageService = StorageService();  bool _isFavorite = false;  bool _isLoading = true;    @override  void initState() {    super.initState();    _checkIfFavorite();  }    Future<void> _checkIfFavorite() async {    setState(() {      _isLoading = true;    });    final isFavorite = await _storageService.isFavorite(widget.recipeId);    setState(() {      _isFavorite = isFavorite;      _isLoading = false;    });  }    Future<void> _toggleFavorite(Recipe recipe) async {    setState(() {      _isLoading = true;    });        bool success;    if (_isFavorite) {      success = await _storageService.removeFavorite(widget.recipeId);      if (success) {        ScaffoldMessenger.of(context).showSnackBar(          const SnackBar(content: Text('Removed from favorites')),        );      }    } else {      success = await _storageService.addFavorite(recipe);      if (success) {        ScaffoldMessenger.of(context).showSnackBar(          const SnackBar(content: Text('Added to favorites')),        );      }    }        if (success) {      setState(() {        _isFavorite = !_isFavorite;        _isLoading = false;      });    } else {      setState(() {        _isLoading = false;      });    }  }  @override  Widget build(BuildContext context) {    return Scaffold(      appBar: AppBar(        title: const Text('Recipe Details'),        actions: [          _isLoading             ? const Padding(                padding: EdgeInsets.all(8.0),                child: CircularProgressIndicator(),              )            : IconButton(                icon: Icon(                  _isFavorite ? Icons.favorite : Icons.favorite_border,                  color: _isFavorite ? Colors.red : null,                ),                onPressed: () {                  // Get the basic recipe info from the API controller                  final apiController = Provider.of<ApiController>(context, listen: false);                  apiController.getRecipeById(widget.recipeId).then((recipe) {                    if (recipe != null) {                      _toggleFavorite(recipe);                    }                  });                },              ),        ],      ),
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
+import '../constants/app_theme.dart';
+import '../models/recipe.dart';
+import '../models/recipe_detail.dart';
+import '../services/api_controller.dart';
+import '../services/storage_service.dart';
+
+class RecipeDetailScreen extends StatefulWidget {
+  final int recipeId;
+  final String? recipeTitle;
+
+  const RecipeDetailScreen({
+    super.key,
+    required this.recipeId,
+    this.recipeTitle,
+  });
+
+  @override
+  State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
+}
+
+class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
+  late final Future<RecipeDetail> _recipeFuture;
+  bool _isFavorite = false;
+  final StorageService _storageService = StorageService();
+
+  @override
+  void initState() {
+    super.initState();
+    _recipeFuture = Provider.of<ApiController>(context, listen: false)
+        .getRecipeDetails(widget.recipeId);
+    _checkIfFavorite();
+  }
+
+  Future<void> _checkIfFavorite() async {
+    final isFavorite = await _storageService.isFavorite(widget.recipeId);
+    if (mounted) {
+      setState(() {
+        _isFavorite = isFavorite;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.recipeTitle ?? 'Recipe Details'),
+        actions: [
+          IconButton(
+            icon: Icon(_isFavorite ? Icons.favorite : Icons.favorite_border),
+            color: _isFavorite ? Colors.red : null,
+            onPressed: () {
+              setState(() {
+                _isFavorite = !_isFavorite;
+              });
+              _recipeFuture.then((recipe) {
+                if (_isFavorite) {
+                  _storageService.addFavorite(recipe.toRecipe());
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Added to favorites')),
+                  );
+                } else {
+                  _storageService.removeFavorite(recipe.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Removed from favorites')),
+                  );
+                }
+              });
+            },
+          ),
+        ],
+      ),
       body: FutureBuilder<RecipeDetail>(
-        future: Provider.of<ApiController>(context, listen: false)
-            .getRecipeDetails(widget.recipeId),
+        future: _recipeFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading recipe details...',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
             );
           } else if (snapshot.hasError) {
             return Center(
@@ -22,11 +109,6 @@ import 'package:flutter/material.dart';import 'package:provider/provider.dart';i
                     'Error: ${snapshot.error}',
                     style: const TextStyle(color: AppTheme.errorColor),
                     textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Go Back'),
                   ),
                 ],
               ),
@@ -63,15 +145,33 @@ import 'package:flutter/material.dart';import 'package:provider/provider.dart';i
                 children: [
                   // Recipe image
                   if (recipe.image.isNotEmpty)
-                    Image.network(
-                      recipe.image,
-                      height: 250,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                    Hero(
+                      tag: 'recipe_image_${recipe.id}',
+                      child: CachedNetworkImage(
+                        imageUrl: recipe.image,
                         height: 250,
-                        color: Colors.grey.shade300,
-                        child: const Icon(Icons.broken_image, size: 60),
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        // Memory optimization for large images
+                        memCacheHeight: 800,
+                        memCacheWidth: 1200,
+                        // Progressive loading
+                        fadeInDuration: const Duration(milliseconds: 300),
+                        // Optimized placeholder with shimmer effect
+                        placeholder: (context, url) => Shimmer.fromColors(
+                          baseColor: Colors.grey.shade300,
+                          highlightColor: Colors.grey.shade100,
+                          child: Container(
+                            height: 250,
+                            width: double.infinity,
+                            color: Colors.grey.shade300,
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          height: 250,
+                          color: Colors.grey.shade300,
+                          child: const Icon(Icons.broken_image, size: 60),
+                        ),
                       ),
                     ),
                     

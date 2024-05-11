@@ -1,124 +1,27 @@
-class RecipeDetail {
-  final int id;
-  final String title;
-  final String image;
-  final int readyInMinutes;
-  final int servings;
-  final String summary;
-  final List<String> dishTypes;
-  final List<String> diets;
-  final int aggregateLikes;
-  final double healthScore;
-  final double spoonacularScore;
-  final bool cheap;
-  final bool veryPopular;
-  final bool sustainable;
-  final bool veryHealthy;
-  final bool dairyFree;
-  final bool glutenFree;
-  final bool vegan;
-  final bool vegetarian;
-  final List<RecipeDetailIngredient> ingredients;
-  final List<RecipeStep> steps;
+import 'recipe.dart';
 
-  RecipeDetail({
-    required this.id,
-    required this.title,
-    required this.image,
-    required this.readyInMinutes,
-    required this.servings,
-    required this.summary,
-    required this.dishTypes,
-    required this.diets,
-    required this.aggregateLikes,
-    required this.healthScore,
-    required this.spoonacularScore,
-    required this.cheap,
-    required this.veryPopular,
-    required this.sustainable,
-    required this.veryHealthy,
-    required this.dairyFree,
-    required this.glutenFree,
-    required this.vegan,
-    required this.vegetarian,
-    required this.ingredients,
-    required this.steps,
-  });
-
-  factory RecipeDetail.fromJson(Map<String, dynamic> json) {
-    // Parse ingredients
-    List<RecipeDetailIngredient> ingredients = [];
-    if (json['extendedIngredients'] != null) {
-      ingredients = (json['extendedIngredients'] as List)
-          .map((item) => RecipeDetailIngredient.fromJson(item))
-          .toList();
-    }
-
-    // Parse steps
-    List<RecipeStep> steps = [];
-    if (json['analyzedInstructions'] != null && 
-        json['analyzedInstructions'].isNotEmpty &&
-        json['analyzedInstructions'][0]['steps'] != null) {
-      steps = (json['analyzedInstructions'][0]['steps'] as List)
-          .map((item) => RecipeStep.fromJson(item))
-          .toList();
-    }
-
-    return RecipeDetail(
-      id: json['id'],
-      title: json['title'],
-      image: json['image'],
-      readyInMinutes: json['readyInMinutes'] ?? 0,
-      servings: json['servings'] ?? 0,
-      summary: json['summary'] ?? '',
-      dishTypes: json['dishTypes'] != null 
-          ? List<String>.from(json['dishTypes']) 
-          : [],
-      diets: json['diets'] != null 
-          ? List<String>.from(json['diets']) 
-          : [],
-      aggregateLikes: json['aggregateLikes'] ?? 0,
-      healthScore: json['healthScore']?.toDouble() ?? 0.0,
-      spoonacularScore: json['spoonacularScore']?.toDouble() ?? 0.0,
-      cheap: json['cheap'] ?? false,
-      veryPopular: json['veryPopular'] ?? false,
-      sustainable: json['sustainable'] ?? false,
-      veryHealthy: json['veryHealthy'] ?? false,
-      dairyFree: json['dairyFree'] ?? false,
-      glutenFree: json['glutenFree'] ?? false,
-      vegan: json['vegan'] ?? false,
-      vegetarian: json['vegetarian'] ?? false,
-      ingredients: ingredients,
-      steps: steps,
-    );
-  }
-}
-
-class RecipeDetailIngredient {
+class RecipeIngredient {
   final int id;
   final String name;
-  final String original;
   final double amount;
   final String unit;
-  final String image;
+  final String original;
 
-  RecipeDetailIngredient({
+  RecipeIngredient({
     required this.id,
     required this.name,
-    required this.original,
     required this.amount,
     required this.unit,
-    required this.image,
+    required this.original,
   });
 
-  factory RecipeDetailIngredient.fromJson(Map<String, dynamic> json) {
-    return RecipeDetailIngredient(
-      id: json['id'],
-      name: json['name'] ?? '',
-      original: json['original'] ?? '',
-      amount: json['amount']?.toDouble() ?? 0.0,
-      unit: json['unit'] ?? '',
-      image: json['image'] ?? '',
+  factory RecipeIngredient.fromJson(Map<String, dynamic> json) {
+    return RecipeIngredient(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      amount: (json['amount'] as num).toDouble(),
+      unit: json['unit'] as String,
+      original: json['original'] as String,
     );
   }
 }
@@ -126,36 +29,102 @@ class RecipeDetailIngredient {
 class RecipeStep {
   final int number;
   final String step;
-  final List<String> ingredients;
-  final List<String> equipment;
 
   RecipeStep({
     required this.number,
     required this.step,
-    required this.ingredients,
-    required this.equipment,
   });
 
   factory RecipeStep.fromJson(Map<String, dynamic> json) {
-    // Parse ingredients
-    final ingredientsList = json['ingredients'] as List? ?? [];
-    final ingredients = ingredientsList
-        .map((item) => item['name'] as String? ?? '')
-        .where((name) => name.isNotEmpty)
-        .toList();
-
-    // Parse equipment
-    final equipmentList = json['equipment'] as List? ?? [];
-    final equipment = equipmentList
-        .map((item) => item['name'] as String? ?? '')
-        .where((name) => name.isNotEmpty)
-        .toList();
-
     return RecipeStep(
-      number: json['number'] ?? 0,
-      step: json['step'] ?? '',
+      number: json['number'] as int,
+      step: json['step'] as String,
+    );
+  }
+}
+
+class RecipeDetail {
+  final int id;
+  final String title;
+  final String image;
+  final int readyInMinutes;
+  final int servings;
+  final double healthScore;
+  final String summary;
+  final List<RecipeIngredient> ingredients;
+  final List<RecipeStep> steps;
+  final bool vegetarian;
+  final bool vegan;
+  final bool glutenFree;
+  final bool dairyFree;
+  final bool sustainable;
+
+  RecipeDetail({
+    required this.id,
+    required this.title,
+    required this.image,
+    required this.readyInMinutes,
+    required this.servings,
+    required this.healthScore,
+    required this.summary,
+    required this.ingredients,
+    required this.steps,
+    required this.vegetarian,
+    required this.vegan,
+    required this.glutenFree,
+    required this.dairyFree,
+    required this.sustainable,
+  });
+
+  factory RecipeDetail.fromJson(Map<String, dynamic> json) {
+    // Handle ingredients
+    List<RecipeIngredient> ingredients = [];
+    if (json['extendedIngredients'] != null) {
+      ingredients = (json['extendedIngredients'] as List)
+          .map((i) => RecipeIngredient.fromJson(i))
+          .toList();
+    }
+
+    // Handle steps
+    List<RecipeStep> steps = [];
+    if (json['analyzedInstructions'] != null && (json['analyzedInstructions'] as List).isNotEmpty) {
+      final instructions = json['analyzedInstructions'][0];
+      if (instructions['steps'] != null) {
+        steps = (instructions['steps'] as List)
+            .map((s) => RecipeStep.fromJson(s))
+            .toList();
+      }
+    }
+
+    return RecipeDetail(
+      id: json['id'] as int,
+      title: json['title'] as String,
+      image: json['image'] ?? '',
+      readyInMinutes: json['readyInMinutes'] as int? ?? 0,
+      servings: json['servings'] as int? ?? 1,
+      healthScore: (json['healthScore'] as num?)?.toDouble() ?? 0,
+      summary: json['summary'] as String? ?? '',
       ingredients: ingredients,
-      equipment: equipment,
+      steps: steps,
+      vegetarian: json['vegetarian'] as bool? ?? false,
+      vegan: json['vegan'] as bool? ?? false,
+      glutenFree: json['glutenFree'] as bool? ?? false,
+      dairyFree: json['dairyFree'] as bool? ?? false,
+      sustainable: json['sustainable'] as bool? ?? false,
+    );
+  }
+  
+  // Convert RecipeDetail to Recipe for storage
+  Recipe toRecipe() {
+    return Recipe(
+      id: id,
+      title: title,
+      image: image,
+      likes: 0, // Not included in detail
+      missedIngredientCount: 0, // Not relevant for favorites
+      usedIngredientCount: ingredients.length,
+      missedIngredients: [], // Not needed for favorites
+      usedIngredients: [], // Not needed for favorites
     );
   }
 } 
