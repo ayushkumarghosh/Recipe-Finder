@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
 import '../constants/app_theme.dart';
 import '../models/recipe.dart';
+import '../widgets/optimized_image.dart';
 
 class RecipeCard extends StatelessWidget {
   final Recipe recipe;
@@ -31,46 +30,21 @@ class RecipeCard extends StatelessWidget {
             // Recipe image with used/missed ingredients indicator
             Stack(
               children: [
-                // Recipe image
-                ClipRRect(
+                // Recipe image using optimized component
+                OptimizedImage(
+                  imageUrl: recipe.image,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12.0),
                     topRight: Radius.circular(12.0),
                   ),
-                  child: CachedNetworkImage(
-                    imageUrl: recipe.image,
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    // Optimize memory usage
-                    memCacheWidth: 600,
-                    memCacheHeight: 400,
-                    // Fade in animation
-                    fadeInDuration: const Duration(milliseconds: 200),
-                    // Optimize placeholder with shimmer effect
-                    placeholder: (context, url) => Shimmer.fromColors(
-                      baseColor: Colors.grey.shade300,
-                      highlightColor: Colors.grey.shade100,
-                      child: Container(
-                        height: 180,
-                        width: double.infinity,
-                        color: Colors.grey.shade300,
-                      ),
-                    ),
-                    // Error handling
-                    errorWidget: (context, url, error) => Container(
-                      height: 180,
-                      width: double.infinity,
-                      color: Colors.grey.shade200,
-                      child: const Center(
-                        child: Icon(
-                          Icons.broken_image,
-                          size: 40,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Memory optimization
+                  memCacheWidth: 600,
+                  memCacheHeight: 400,
+                  // Hero animation for transition to detail screen
+                  heroTag: 'recipe_image_${recipe.id}',
                 ),
                 // Ingredients used counter
                 Positioned(

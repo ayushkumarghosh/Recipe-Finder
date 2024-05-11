@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
 import '../constants/app_theme.dart';
-import '../models/recipe.dart';
 import '../models/recipe_detail.dart';
 import '../services/api_controller.dart';
 import '../services/storage_service.dart';
+import '../widgets/optimized_image.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final int recipeId;
@@ -145,34 +143,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 children: [
                   // Recipe image
                   if (recipe.image.isNotEmpty)
-                    Hero(
-                      tag: 'recipe_image_${recipe.id}',
-                      child: CachedNetworkImage(
-                        imageUrl: recipe.image,
-                        height: 250,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        // Memory optimization for large images
-                        memCacheHeight: 800,
-                        memCacheWidth: 1200,
-                        // Progressive loading
-                        fadeInDuration: const Duration(milliseconds: 300),
-                        // Optimized placeholder with shimmer effect
-                        placeholder: (context, url) => Shimmer.fromColors(
-                          baseColor: Colors.grey.shade300,
-                          highlightColor: Colors.grey.shade100,
-                          child: Container(
-                            height: 250,
-                            width: double.infinity,
-                            color: Colors.grey.shade300,
-                          ),
-                        ),
-                        errorWidget: (_, __, ___) => Container(
-                          height: 250,
-                          color: Colors.grey.shade300,
-                          child: const Icon(Icons.broken_image, size: 60),
-                        ),
-                      ),
+                    OptimizedImage(
+                      imageUrl: recipe.image,
+                      height: 250,
+                      width: double.infinity,
+                      // Memory optimization for large images
+                      memCacheHeight: 800,
+                      memCacheWidth: 1200,
+                      // Hero animation for smooth transition from recipe card
+                      heroTag: 'recipe_image_${recipe.id}',
                     ),
                     
                   // Recipe title and info

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../constants/app_theme.dart';
 import '../models/recipe.dart';
 import '../services/storage_service.dart';
+import '../widgets/optimized_image.dart';
 import 'recipe_detail_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -31,6 +31,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Future<void> _removeFavorite(Recipe recipe) async {
     final result = await _storageService.removeFavorite(recipe.id);
     if (result) {
+      if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${recipe.title} removed from favorites'),
@@ -109,98 +111,116 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             return ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: recipes.length,
+              // Add cacheExtent to improve scrolling performance
+              cacheExtent: 500,
               itemBuilder: (context, index) {
                 final recipe = recipes[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  elevation: 2,
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RecipeDetailScreen(
-                            recipeId: recipe.id,
-                          ),
+                return FavoriteRecipeCard(
+                  recipe: recipe,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RecipeDetailScreen(
+                          recipeId: recipe.id,
+                          recipeTitle: recipe.title,
                         ),
-                      ).then((_) => _loadFavorites());
-                    },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Recipe image
-                        if (recipe.image.isNotEmpty)
-                          CachedNetworkImage(
-                            imageUrl: recipe.image,
-                            height: 180,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              height: 180,
-                              color: Colors.grey.shade300,
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              height: 180,
-                              color: Colors.grey.shade300,
-                              child: const Icon(Icons.broken_image, size: 40),
-                            ),
-                          ),
-                        
-                        // Recipe title and info
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      recipe.title,
-                                      style: AppTheme.titleLarge,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.favorite,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () => _removeFavorite(recipe),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Used ingredients: ${recipe.usedIngredientCount}',
-                                style: const TextStyle(
-                                  color: AppTheme.textColorSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Missing ingredients: ${recipe.missedIngredientCount}',
-                                style: const TextStyle(
-                                  color: AppTheme.textColorSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    ).then((_) => _loadFavorites());
+                  },
+                  onRemove: () => _removeFavorite(recipe),
                 );
               },
             );
           }
         },
+      ),
+    );
+  }
+}
+
+/// A separate widget for favorite recipe card for better performance
+class FavoriteRecipeCard extends StatelessWidget {
+  final Recipe recipe;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  const FavoriteRecipeCard({
+    super.key,
+    required this.recipe,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Recipe image
+            if (recipe.image.isNotEmpty)
+              OptimizedImage(
+                imageUrl: recipe.image,
+                height: 180,
+                width: double.infinity,
+                // Hero animation for transition to detail screen
+                heroTag: 'recipe_image_${recipe.id}',
+                // Memory optimization
+                memCacheWidth: 600,
+                memCacheHeight: 400,
+              ),
+            
+            // Recipe title and info
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          recipe.title,
+                          style: AppTheme.titleLarge,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.favorite,
+                          color: Colors.red,
+                        ),
+                        onPressed: onRemove,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Used ingredients: ${recipe.usedIngredientCount}',
+                    style: const TextStyle(
+                      color: AppTheme.textColorSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Missing ingredients: ${recipe.missedIngredientCount}',
+                    style: const TextStyle(
+                      color: AppTheme.textColorSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
