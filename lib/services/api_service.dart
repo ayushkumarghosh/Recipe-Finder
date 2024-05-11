@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import '../models/recipe.dart';
 import '../models/recipe_detail.dart';
 
@@ -21,14 +23,80 @@ class ApiService {
   // Caching layer for API responses
   final Map<String, dynamic> _cache = {};
   // Cache TTL in seconds
-  final int _cacheTtl = 300; // 5 minutes
+  final int _cacheTtl = 3600; // Increased to 1 hour
   // Cache timestamps for expiration
   final Map<String, DateTime> _cacheTimestamps = {};
+  // Track ongoing requests to prevent duplicate API calls
+  final Map<String, Completer<dynamic>> _ongoingRequests = {};
+  
+  // Key for persistent cache in SharedPreferences
+  static const String _persistentCacheKey = 'api_response_cache';
+  static const String _persistentCacheTimestampKey = 'api_cache_timestamps';
 
   ApiService() {
     apiKey = dotenv.env['SPOONACULAR_API_KEY'] ?? '';
     if (apiKey.isEmpty) {
       throw ApiException('API key not found. Please check your .env file.');
+    }
+    // Load cache from persistent storage
+    _loadCacheFromStorage();
+  }
+  
+  // Load cache from persistent storage
+  Future<void> _loadCacheFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final persistentCache = prefs.getString(_persistentCacheKey);
+      final persistentTimestamps = prefs.getString(_persistentCacheTimestampKey);
+      
+      if (persistentCache != null && persistentTimestamps != null) {
+        final decodedCache = json.decode(persistentCache) as Map<String, dynamic>;
+        final decodedTimestamps = json.decode(persistentTimestamps) as Map<String, dynamic>;
+        
+        // Convert timestamps back to DateTime
+        final timestamps = <String, DateTime>{};
+        decodedTimestamps.forEach((key, value) {
+          timestamps[key] = DateTime.fromMillisecondsSinceEpoch(value as int);
+        });
+        
+        // Only load entries that haven't expired
+        final now = DateTime.now();
+        decodedCache.forEach((key, value) {
+          final timestamp = timestamps[key];
+          if (timestamp != null) {
+            final expiration = timestamp.add(Duration(seconds: _cacheTtl));
+            if (now.isBefore(expiration)) {
+              _cache[key] = value;
+              _cacheTimestamps[key] = timestamp;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      // If loading fails, simply start with an empty cache
+      // No need to throw an exception here
+    }
+  }
+  
+  // Save cache to persistent storage
+  Future<void> _saveCacheToStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Convert timestamps to milliseconds for JSON serialization
+      final timestamps = <String, int>{};
+      _cacheTimestamps.forEach((key, value) {
+        timestamps[key] = value.millisecondsSinceEpoch;
+      });
+      
+      // Only save if there's data to save
+      if (_cache.isNotEmpty) {
+        await prefs.setString(_persistentCacheKey, json.encode(_cache));
+        await prefs.setString(_persistentCacheTimestampKey, json.encode(timestamps));
+      }
+    } catch (e) {
+      // If saving fails, just continue
+      // The in-memory cache will still work
     }
   }
 
@@ -93,11 +161,16 @@ class ApiService {
   void _cacheData(String cacheKey, dynamic data) {
     _cache[cacheKey] = data;
     _cacheTimestamps[cacheKey] = DateTime.now();
+    
+    // Save to persistent storage asynchronously
+    unawaited(_saveCacheToStorage());
   }
   
   void clearCache() {
     _cache.clear();
     _cacheTimestamps.clear();
+    // Clear from persistent storage as well
+    _saveCacheToStorage();
   }
 
   // Basic test connection to check if API is working
@@ -111,6 +184,52 @@ class ApiService {
       return false;
     }
   }
+  
+  // Generic method to make API requests with caching and concurrent request handling
+  Future<T> _makeApiRequest<T>(String endpoint, Map<String, dynamic> params, 
+      Future<http.Response> Function() apiCall, T Function(dynamic) transform) async {
+    final cacheKey = _generateCacheKey(endpoint, params);
+    
+    // Check cache first
+    final cachedData = _getCachedData(cacheKey);
+    if (cachedData != null) {
+      return transform(cachedData);
+    }
+    
+    // Check if there's an ongoing request for this exact endpoint and params
+    if (_ongoingRequests.containsKey(cacheKey)) {
+      // Wait for the existing request to complete instead of making a duplicate
+      return _ongoingRequests[cacheKey]!.future.then((data) => transform(data)) as Future<T>;
+    }
+    
+    // Create a completer to track this request
+    final completer = Completer<dynamic>();
+    _ongoingRequests[cacheKey] = completer;
+    
+    try {
+      final response = await apiCall();
+      final result = await _handleResponse(response);
+      final data = endpoint.contains('complexSearch') ? result['data']['results'] : result['data'];
+      
+      // Cache the result
+      _cacheData(cacheKey, data);
+      
+      // Complete the request
+      completer.complete(data);
+      _ongoingRequests.remove(cacheKey);
+      
+      return transform(data);
+    } catch (e) {
+      // Complete with error
+      completer.completeError(e);
+      _ongoingRequests.remove(cacheKey);
+      
+      if (e is ApiException) {
+        rethrow;
+      }
+      throw ApiException('API request failed: ${e.toString()}');
+    }
+  }
 
   // Method to search recipes by ingredients with caching
   Future<List<Recipe>> searchRecipesByIngredients(
@@ -120,40 +239,22 @@ class ApiService {
       int ranking = 1,
       bool ignorePantry = false,
     }) async {
-    try {
-      final String ingredientsStr = ingredients.join(',');
-      
-      // Build cache key and check cache
-      final params = {
-        'ingredients': ingredientsStr,
-        'number': number.toString(),
-        'ranking': ranking.toString(),
-        'ignorePantry': ignorePantry.toString(),
-        'limitLicense': limitLicense.toString(),
-      };
-      
-      final cacheKey = _generateCacheKey('/recipes/findByIngredients', params);
-      final cachedData = _getCachedData(cacheKey);
-      
-      if (cachedData != null) {
-        return (cachedData as List).map((json) => Recipe.fromJson(json)).toList();
-      }
-      
-      final response = await http.get(_buildUrl('/recipes/findByIngredients', params));
-      
-      final result = await _handleResponse(response);
-      final List<dynamic> data = result['data'];
-      
-      // Cache the result
-      _cacheData(cacheKey, data);
-      
-      return data.map((json) => Recipe.fromJson(json)).toList();
-    } catch (e) {
-      if (e is ApiException) {
-        rethrow;
-      }
-      throw ApiException('Failed to search recipes: ${e.toString()}');
-    }
+    final String ingredientsStr = ingredients.join(',');
+    
+    final params = {
+      'ingredients': ingredientsStr,
+      'number': number.toString(),
+      'ranking': ranking.toString(),
+      'ignorePantry': ignorePantry.toString(),
+      'limitLicense': limitLicense.toString(),
+    };
+    
+    return _makeApiRequest<List<Recipe>>(
+      '/recipes/findByIngredients',
+      params,
+      () => http.get(_buildUrl('/recipes/findByIngredients', params)),
+      (data) => (data as List).map((json) => Recipe.fromJson(json)).toList()
+    );
   }
   
   // Get detailed information about a specific recipe with caching
@@ -161,34 +262,16 @@ class ApiService {
     int recipeId, {
     bool includeNutrition = false,
   }) async {
-    try {
-      // Build cache key and check cache
-      final params = {
-        'includeNutrition': includeNutrition.toString(),
-      };
-      
-      final cacheKey = _generateCacheKey('/recipes/$recipeId/information', params);
-      final cachedData = _getCachedData(cacheKey);
-      
-      if (cachedData != null) {
-        return RecipeDetail.fromJson(cachedData);
-      }
-      
-      final response = await http.get(_buildUrl('/recipes/$recipeId/information', params));
-
-      final result = await _handleResponse(response);
-      final data = result['data'];
-      
-      // Cache the result
-      _cacheData(cacheKey, data);
-      
-      return RecipeDetail.fromJson(data);
-    } catch (e) {
-      if (e is ApiException) {
-        rethrow;
-      }
-      throw ApiException('Failed to get recipe details: ${e.toString()}');
-    }
+    final params = {
+      'includeNutrition': includeNutrition.toString(),
+    };
+    
+    return _makeApiRequest<RecipeDetail>(
+      '/recipes/$recipeId/information',
+      params,
+      () => http.get(_buildUrl('/recipes/$recipeId/information', params)),
+      (data) => RecipeDetail.fromJson(data)
+    );
   }
   
   // Complex search for recipes with multiple filters and caching
@@ -207,70 +290,54 @@ class ApiService {
     String sort = 'popularity',
     String sortDirection = 'desc',
   }) async {
-    try {
-      Map<String, dynamic> queryParams = {
-        'number': number.toString(),
-        'offset': offset.toString(),
-        'sort': sort,
-        'sortDirection': sortDirection,
-        'addRecipeInformation': includeInstructions.toString(),
-      };
-      
-      if (query != null && query.isNotEmpty) {
-        queryParams['query'] = query;
-      }
-      
-      if (cuisine != null && cuisine.isNotEmpty) {
-        queryParams['cuisine'] = cuisine.join(',');
-      }
-      
-      if (diet != null && diet.isNotEmpty) {
-        queryParams['diet'] = diet.join(',');
-      }
-      
-      if (intolerances != null && intolerances.isNotEmpty) {
-        queryParams['intolerances'] = intolerances.join(',');
-      }
-      
-      if (includeIngredients != null && includeIngredients.isNotEmpty) {
-        queryParams['includeIngredients'] = includeIngredients.join(',');
-      }
-      
-      if (excludeIngredients != null && excludeIngredients.isNotEmpty) {
-        queryParams['excludeIngredients'] = excludeIngredients.join(',');
-      }
-      
-      if (type != null && type.isNotEmpty) {
-        queryParams['type'] = type;
-      }
-      
-      if (maxReadyTime > 0) {
-        queryParams['maxReadyTime'] = maxReadyTime.toString();
-      }
-      
-      // Build cache key and check cache
-      final cacheKey = _generateCacheKey('/recipes/complexSearch', queryParams);
-      final cachedData = _getCachedData(cacheKey);
-      
-      if (cachedData != null) {
-        return (cachedData as List).map((json) => Recipe.fromJson(json)).toList();
-      }
-      
-      final response = await http.get(_buildUrl('/recipes/complexSearch', queryParams));
-      final result = await _handleResponse(response);
-      
-      // Complex search returns results inside a 'results' array
-      final List<dynamic> data = result['data']['results'];
-      
-      // Cache the result
-      _cacheData(cacheKey, data);
-      
-      return data.map((json) => Recipe.fromJson(json)).toList();
-    } catch (e) {
-      if (e is ApiException) {
-        rethrow;
-      }
-      throw ApiException('Failed to search recipes: ${e.toString()}');
+    Map<String, dynamic> queryParams = {
+      'number': number.toString(),
+      'offset': offset.toString(),
+      'sort': sort,
+      'sortDirection': sortDirection,
+      'addRecipeInformation': includeInstructions.toString(),
+    };
+    
+    if (query != null && query.isNotEmpty) {
+      queryParams['query'] = query;
     }
+    
+    if (cuisine != null && cuisine.isNotEmpty) {
+      queryParams['cuisine'] = cuisine.join(',');
+    }
+    
+    if (diet != null && diet.isNotEmpty) {
+      queryParams['diet'] = diet.join(',');
+    }
+    
+    if (intolerances != null && intolerances.isNotEmpty) {
+      queryParams['intolerances'] = intolerances.join(',');
+    }
+    
+    if (includeIngredients != null && includeIngredients.isNotEmpty) {
+      queryParams['includeIngredients'] = includeIngredients.join(',');
+    }
+    
+    if (excludeIngredients != null && excludeIngredients.isNotEmpty) {
+      queryParams['excludeIngredients'] = excludeIngredients.join(',');
+    }
+    
+    if (type != null && type.isNotEmpty) {
+      queryParams['type'] = type;
+    }
+    
+    if (maxReadyTime > 0) {
+      queryParams['maxReadyTime'] = maxReadyTime.toString();
+    }
+    
+    return _makeApiRequest<List<Recipe>>(
+      '/recipes/complexSearch',
+      queryParams,
+      () => http.get(_buildUrl('/recipes/complexSearch', queryParams)),
+      (data) => (data as List).map((json) => Recipe.fromJson(json)).toList()
+    );
   }
-} 
+}
+
+/// Make unawaited calls easier to identify
+void unawaited(Future<void> future) {} 
