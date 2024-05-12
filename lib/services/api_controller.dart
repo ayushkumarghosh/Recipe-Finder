@@ -192,7 +192,7 @@ class ApiController with ChangeNotifier {
           : 'Failed to load recipe details';
       _recipeDetail = null;
       notifyListeners();
-      throw e;
+      rethrow;
     }
   }
 

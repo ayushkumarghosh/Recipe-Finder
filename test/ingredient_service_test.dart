@@ -1,20 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:recipe_finder/models/ingredient.dart';
 import 'package:recipe_finder/services/ingredient_service.dart';
 
-import 'ingredient_service_test.mocks.dart';
-
 @GenerateMocks([SharedPreferences])
 void main() {
   late IngredientService ingredientService;
-  late MockSharedPreferences mockPrefs;
   
   setUp(() {
-    mockPrefs = MockSharedPreferences();
-    // Set up mock SharedPreferences
+    // Set up mock SharedPreferences without unused variable
     SharedPreferences.setMockInitialValues({});
     ingredientService = IngredientService();
   });
@@ -23,9 +18,6 @@ void main() {
     test('getSuggestions should return matching ingredients', () async {
       // Arrange
       final query = 'tom';
-      final expectedIngredients = [
-        Ingredient(name: 'Tomato', category: 'Vegetable', isCommon: true),
-      ];
       
       // Act
       final suggestions = await ingredientService.getSuggestions(query);

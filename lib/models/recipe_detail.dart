@@ -58,6 +58,7 @@ class RecipeDetail {
   final bool glutenFree;
   final bool dairyFree;
   final bool sustainable;
+  final int aggregateLikes;
 
   RecipeDetail({
     required this.id,
@@ -74,6 +75,7 @@ class RecipeDetail {
     required this.glutenFree,
     required this.dairyFree,
     required this.sustainable,
+    this.aggregateLikes = 0,
   });
 
   factory RecipeDetail.fromJson(Map<String, dynamic> json) {
@@ -111,6 +113,7 @@ class RecipeDetail {
       glutenFree: json['glutenFree'] as bool? ?? false,
       dairyFree: json['dairyFree'] as bool? ?? false,
       sustainable: json['sustainable'] as bool? ?? false,
+      aggregateLikes: json['aggregateLikes'] as int? ?? 0,
     );
   }
   
@@ -120,7 +123,7 @@ class RecipeDetail {
       id: id,
       title: title,
       image: image,
-      likes: 0, // Not included in detail
+      likes: aggregateLikes, // Use aggregateLikes for likes
       missedIngredientCount: 0, // Not relevant for favorites
       usedIngredientCount: ingredients.length,
       missedIngredients: [], // Not needed for favorites

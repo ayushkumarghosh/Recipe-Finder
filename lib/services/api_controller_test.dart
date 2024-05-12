@@ -34,6 +34,11 @@ class MockApiService implements ApiService {
   }
   
   @override
+  void clearCache() {
+    // No-op for mock
+  }
+  
+  @override
   Future<List<Recipe>> searchRecipesByIngredients(
     List<String> ingredients, {
     int number = 10,
@@ -184,22 +189,16 @@ void main() {
         image: 'test.jpg',
         readyInMinutes: 30,
         servings: 4,
-        summary: 'A test recipe',
-        dishTypes: ['lunch'],
-        diets: [],
-        aggregateLikes: 10,
         healthScore: 80,
-        spoonacularScore: 90,
-        cheap: true,
-        veryPopular: false,
-        sustainable: true,
-        veryHealthy: true,
-        dairyFree: true,
-        glutenFree: true,
-        vegan: false,
-        vegetarian: true,
+        summary: 'A test recipe',
         ingredients: [],
         steps: [],
+        vegetarian: true,
+        vegan: false,
+        glutenFree: true,
+        dairyFree: true,
+        sustainable: true,
+        aggregateLikes: 10,
       );
 
       // Act
