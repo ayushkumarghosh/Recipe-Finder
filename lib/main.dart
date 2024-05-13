@@ -6,6 +6,7 @@ import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'services/api_controller.dart';
 import 'services/storage_service.dart';
+import 'utils/page_transitions.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,9 +31,24 @@ class RecipeFinderApp extends StatelessWidget {
         title: 'Recipe Finder',
         theme: AppTheme.lightTheme(),
         initialRoute: '/',
-        routes: {
-          '/': (context) => const HomeScreen(),
-          '/favorites': (context) => const FavoritesScreen(),
+        onGenerateRoute: (settings) {
+          switch (settings.name) {
+            case '/':
+              return PageTransitions.fadeTransition(
+                const HomeScreen(),
+                settings: settings,
+              );
+            case '/favorites':
+              return PageTransitions.slideTransition(
+                const FavoritesScreen(),
+                settings: settings,
+              );
+            default:
+              return PageTransitions.fadeTransition(
+                const HomeScreen(),
+                settings: settings,
+              );
+          }
         },
       ),
     );

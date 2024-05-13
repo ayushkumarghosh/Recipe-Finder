@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
+import 'dart:ui' as ui;
 
 /// An optimized image widget that efficiently handles remote images with caching, 
-/// placeholders, and error states.
+/// placeholders, error states, and optimized loading.
 class OptimizedImage extends StatelessWidget {
   /// The URL of the image to display
   final String imageUrl;
@@ -37,6 +38,15 @@ class OptimizedImage extends StatelessWidget {
   
   /// Duration for the fade-in animation
   final Duration fadeInDuration;
+  
+  /// Whether to enable blur-up effect for progressive loading
+  final bool enableBlurUp;
+  
+  /// Blur sigma for the blur-up effect
+  final double blurSigma;
+  
+  /// Whether to use high quality for the network image
+  final bool highQuality;
 
   const OptimizedImage({
     super.key,
@@ -51,10 +61,22 @@ class OptimizedImage extends StatelessWidget {
     this.errorWidget,
     this.heroTag,
     this.fadeInDuration = const Duration(milliseconds: 300),
+    this.enableBlurUp = true,
+    this.blurSigma = 10.0,
+    this.highQuality = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Determine optimal memory cache width and height based on device pixel ratio
+    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final calculatedMemCacheWidth = memCacheWidth != null 
+        ? (memCacheWidth! * pixelRatio).toInt() 
+        : (width != null ? (width! * pixelRatio).toInt() : null);
+    final calculatedMemCacheHeight = memCacheHeight != null 
+        ? (memCacheHeight! * pixelRatio).toInt() 
+        : (height != null ? (height! * pixelRatio).toInt() : null);
+    
     // Create the cached image widget with optimizations
     final cachedImage = CachedNetworkImage(
       imageUrl: imageUrl,
@@ -62,14 +84,21 @@ class OptimizedImage extends StatelessWidget {
       width: width,
       fit: fit,
       // Memory optimization
-      memCacheWidth: memCacheWidth,
-      memCacheHeight: memCacheHeight,
+      memCacheWidth: calculatedMemCacheWidth,
+      memCacheHeight: calculatedMemCacheHeight,
       // Fade in animation
       fadeInDuration: fadeInDuration,
       // Shimmer effect placeholder
       placeholder: (context, url) => loadingWidget ?? _buildDefaultLoading(),
       // Error handling
       errorWidget: (context, url, error) => errorWidget ?? _buildDefaultError(),
+      // Use high quality for important images
+      maxWidthDiskCache: highQuality ? 2000 : 800,
+      maxHeightDiskCache: highQuality ? 2000 : 800,
+      // Progressive loading
+      progressIndicatorBuilder: enableBlurUp 
+          ? (context, url, progress) => _buildProgressiveLoading(progress) 
+          : null,
     );
     
     // Apply hero animation if tag is provided
@@ -96,6 +125,65 @@ class OptimizedImage extends StatelessWidget {
     );
   }
 
+  /// Progressive loading with blur effect
+  Widget _buildProgressiveLoading(DownloadProgress progress) {
+    if (progress.progress == null) {
+      return _buildDefaultLoading();
+    }
+    
+    // If we have a thumbnail, show it with blur
+    if (progress.progress! > 0 && enableBlurUp) {
+      return Stack(
+        fit: StackFit.passthrough,
+        children: [
+          Image.network(
+            imageUrl,
+            height: height,
+            width: width,
+            fit: fit,
+            filterQuality: FilterQuality.low,
+            cacheHeight: 100, // Very small for thumbnail
+            cacheWidth: 100,  // Very small for thumbnail
+            frameBuilder: (BuildContext context, Widget child, int? frame, bool wasSynchronouslyLoaded) {
+              // Apply blur effect
+              return ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(
+                  sigmaX: blurSigma * (1 - (progress.progress ?? 0)), 
+                  sigmaY: blurSigma * (1 - (progress.progress ?? 0)),
+                ),
+                child: Opacity(
+                  opacity: 0.8,
+                  child: child,
+                ),
+              );
+            },
+          ),
+          // Show loading indicator
+          Center(
+            child: CircularProgressIndicator(
+              value: progress.progress,
+              color: Colors.white,
+              strokeWidth: 2,
+            ),
+          ),
+        ],
+      );
+    } else {
+      // Fallback to simple progress indicator
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          _buildDefaultLoading(),
+          CircularProgressIndicator(
+            value: progress.progress,
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        ],
+      );
+    }
+  }
+
   /// Default error widget
   Widget _buildDefaultError() {
     return Container(
@@ -103,10 +191,23 @@ class OptimizedImage extends StatelessWidget {
       width: width,
       color: Colors.grey.shade200,
       child: const Center(
-        child: Icon(
-          Icons.broken_image,
-          size: 40,
-          color: Colors.grey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.broken_image,
+              size: 40,
+              color: Colors.grey,
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Image failed to load',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ),
     );

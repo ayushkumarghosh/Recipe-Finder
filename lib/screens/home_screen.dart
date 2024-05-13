@@ -10,6 +10,7 @@ import '../widgets/ingredient_chips.dart';
 import 'recipe_results_screen.dart';
 import 'favorites_screen.dart';
 import 'history_screen.dart';
+import '../utils/page_transitions.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -128,10 +129,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _isSubmitting = false;
         });
         
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RecipeResultsScreen(
+        Navigator.of(context).push(
+          PageTransitions.slideTransition(
+            RecipeResultsScreen(
               ingredients: _ingredients,
             ),
           ),
@@ -163,10 +163,9 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                 icon: const Icon(Icons.favorite),
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const FavoritesScreen(),
+                  Navigator.of(context).push(
+                    PageTransitions.scaleTransition(
+                      const FavoritesScreen(),
                     ),
                   );
                 },
@@ -176,10 +175,9 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                 icon: const Icon(Icons.history),
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => HistoryScreen(
+                  Navigator.of(context).push(
+                    PageTransitions.slideTransition(
+                      HistoryScreen(
                         onSelectIngredients: _setIngredientsList,
                       ),
                     ),
@@ -366,6 +364,42 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Icon(Icons.delete_sweep),
             )
           : null,
+    );
+  }
+}
+
+class _AnimatedIngredientsList extends StatelessWidget {
+  final List<String> ingredients;
+  final Function(String) onRemove;
+
+  const _AnimatedIngredientsList({
+    required this.ingredients,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedList(
+      initialItemCount: ingredients.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemBuilder: (context, index, animation) {
+        final ingredient = ingredients[index];
+        return SizeTransition(
+          sizeFactor: animation,
+          child: FadeTransition(
+            opacity: animation,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Chip(
+                label: Text(ingredient),
+                deleteIcon: const Icon(Icons.cancel, size: 18),
+                onDeleted: () => onRemove(ingredient),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 } 
