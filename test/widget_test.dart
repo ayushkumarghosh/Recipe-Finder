@@ -30,6 +30,8 @@ void main() {
               onTap: () {
                 onTapCalled = true;
               },
+              isFavorite: false,
+              onFavoriteToggle: (_) {},
             ),
           ),
         ),
@@ -74,6 +76,8 @@ void main() {
             body: RecipeCard(
               recipe: recipe,
               onTap: () {},
+              isFavorite: false,
+              onFavoriteToggle: (_) {},
             ),
           ),
         ),
