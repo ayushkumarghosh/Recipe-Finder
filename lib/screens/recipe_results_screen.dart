@@ -298,6 +298,11 @@ class _RecipeResultsScreenState extends State<RecipeResultsScreen> with SingleTi
                       ),
                     ),
                   ),
+                  isFavorite: false, // Replace with actual state from favorites service
+                  onFavoriteToggle: (recipe) {
+                    // Implement favorite toggle logic
+                    // This should connect to your favorites storage service
+                  },
                 ),
               ),
             );

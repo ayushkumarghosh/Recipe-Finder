@@ -80,7 +80,7 @@ A Flutter app that allows users to input ingredients and fetch matching recipes 
 - Enhance UI details and consistency
 - Implement any missing features
 
-## Day 14 (May 14): Documentation & Deployment
+## Day 14 (May 14): Documentation & Deployment [DONE]
 - Create user documentation
 - Finalize README
 - Prepare app for deployment
